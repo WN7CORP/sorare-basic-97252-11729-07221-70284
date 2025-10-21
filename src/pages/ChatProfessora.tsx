@@ -111,17 +111,17 @@ const ChatProfessora = () => {
       // Enviar automaticamente para análise assim que anexar
       if (expectedType === "image") {
         await streamResponse(
-          "Analise a imagem anexada. Descreva objetivamente o que há nela, extraia textos visíveis (se houver) e destaque os pontos principais. Depois me pergunte o que desejo saber/fazer e sugira 2-3 perguntas baseadas na análise.",
+          "Por favor, analise esta imagem.",
           'chat',
           [uploaded]
         );
       } else {
         const text = await extractPdfText(file);
-        const truncated = text.slice(0, 8000);
         await streamResponse(
-          `Analise este PDF. Diga do que se trata, destaque os pontos principais e possíveis ações. Depois me pergunte o que desejo saber/fazer e sugira 2-3 perguntas baseadas na análise.\n\nTexto extraído (parcial):\n\n${truncated}`,
+          "Por favor, analise este PDF.",
           'chat',
-          [uploaded]
+          [uploaded],
+          text
         );
       }
     } catch (e) {
@@ -152,7 +152,7 @@ const ChatProfessora = () => {
       return 'Não foi possível extrair o texto deste PDF. Faça uma análise geral do documento pelo contexto e solicite ao usuário pontos de interesse.';
     }
   };
-  const streamResponse = async (userMessage: string, streamMode: 'chat' | 'lesson' = 'chat', filesOverride?: UploadedFile[]) => {
+  const streamResponse = async (userMessage: string, streamMode: 'chat' | 'lesson' = 'chat', filesOverride?: UploadedFile[], extractedText?: string) => {
     if (streamMode === 'chat') {
       setIsLoading(true);
     } else {
@@ -185,7 +185,8 @@ const ChatProfessora = () => {
         body: JSON.stringify({
           messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
           files: filesOverride ?? uploadedFiles,
-          mode: mode
+          mode: mode,
+          extractedText: extractedText || undefined
         }),
         signal: abortControllerRef.current.signal
       });

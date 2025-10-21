@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, files, mode } = await req.json();
+    const { messages, files, mode, extractedText } = await req.json();
     const DIREITO_PREMIUM_API_KEY = Deno.env.get('DIREITO_PREMIUM_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -34,16 +34,18 @@ serve(async (req) => {
     let fileAnalysisPrefix = '';
     if (hasFiles) {
       fileAnalysisPrefix = `\n\n**IMPORTANTE - ARQUIVO ANEXADO:**
-A pessoa anexou um arquivo (imagem ou PDF). Você DEVE:
-1. Analisar cuidadosamente o conteúdo do arquivo
-2. Explicar do que se trata o conteúdo
-3. Perguntar à pessoa o que ela gostaria de fazer ou saber sobre esse conteúdo
-4. Nas sugestões [SUGESTÕES], oferecer perguntas específicas baseadas no conteúdo analisado, como:
-   - Explicar conceitos específicos do documento
-   - Criar flashcards sobre os tópicos
-   - Gerar questões de múltipla escolha
-   - Resumir os pontos principais
-   - Aplicação prática do conteúdo\n`;
+Você recebeu um arquivo real (imagem ou PDF). Você DEVE analisar o CONTEÚDO REAL do arquivo.
+
+${extractedText ? `**TEXTO EXTRAÍDO DO PDF:**\n${extractedText}\n\n` : ''}
+
+Sua resposta DEVE:
+1. Descrever EXATAMENTE o que você vê/lê no arquivo (não invente nada)
+2. Extrair textos visíveis se for imagem
+3. Resumir os pontos principais encontrados NO ARQUIVO
+4. Perguntar à pessoa o que ela gostaria de fazer com esse conteúdo
+5. Nas sugestões [SUGESTÕES], oferecer perguntas específicas baseadas no CONTEÚDO REAL analisado
+
+**NUNCA invente conteúdo que não está no arquivo!**\n`;
     }
     
     // Regex para detectar artigos (art. 5º, artigo 5, art 5, etc)
@@ -196,25 +198,52 @@ As sugestões devem:
 ${cfContext ? `\n\nCONTEXTO DA CONSTITUIÇÃO FEDERAL:${cfContext}` : ''}`;
     }
 
-    // Construir mensagens no formato Gemini
-    const conversationText = messages.map((m: any) => {
-      if (m.role === 'user') return `Usuário: ${m.content}`;
-      if (m.role === 'assistant') return `Assistente: ${m.content}`;
-      return m.content;
-    }).join('\n\n');
-
-    const fullPrompt = `${systemPrompt}\n\n${conversationText}`;
+    // Construir mensagens no formato Gemini com suporte multimodal
+    let geminiContents: any[] = [];
+    
+    // Adicionar system prompt como primeira mensagem do usuário
+    geminiContents.push({
+      role: 'user',
+      parts: [{ text: systemPrompt }]
+    });
+    
+    // Processar mensagens incluindo arquivos
+    for (let i = 0; i < messages.length; i++) {
+      const m: any = messages[i];
+      const isLastUserMessage = i === messages.length - 1 && m.role === 'user';
+      
+      if (m.role === 'user') {
+        const parts: any[] = [{ text: m.content }];
+        
+        // Se for a última mensagem do usuário e houver arquivos, adicionar
+        if (isLastUserMessage && files && files.length > 0) {
+          for (const file of files) {
+            const base64Data = file.data.includes('base64,') 
+              ? file.data.split('base64,')[1] 
+              : file.data;
+            
+            if (file.type.startsWith('image/')) {
+              parts.push({
+                inline_data: {
+                  mime_type: file.type,
+                  data: base64Data
+                }
+              });
+            }
+          }
+        }
+        
+        geminiContents.push({ role: 'user', parts });
+      } else if (m.role === 'assistant') {
+        geminiContents.push({
+          role: 'model',
+          parts: [{ text: m.content }]
+        });
+      }
+    }
 
     const payload = {
-      contents: [
-        {
-          parts: [
-            {
-              text: fullPrompt
-            }
-          ]
-        }
-      ],
+      contents: geminiContents,
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: mode === 'lesson' ? 4000 : 2000,
