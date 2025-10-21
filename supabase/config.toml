@@ -1,1 +1,139 @@
 project_id = "izspjvegxdfgkgibpyst"
+
+[functions.analisar-documento]
+verify_jwt = false
+
+[functions.buscar-candidatos-tse]
+verify_jwt = false
+
+[functions.buscar-conteudo-noticia]
+verify_jwt = false
+
+[functions.buscar-dados-eleitorado]
+verify_jwt = false
+
+[functions.buscar-deputados]
+verify_jwt = false
+
+[functions.buscar-eventos]
+verify_jwt = false
+
+[functions.buscar-frentes]
+verify_jwt = false
+
+[functions.buscar-noticias-juridicas]
+verify_jwt = false
+
+[functions.buscar-orgaos]
+verify_jwt = false
+
+[functions.buscar-partidos]
+verify_jwt = false
+
+[functions.buscar-prestacao-contas]
+verify_jwt = false
+
+[functions.buscar-proposicoes]
+verify_jwt = false
+
+[functions.buscar-resultados-eleicoes]
+verify_jwt = false
+
+[functions.buscar-videos-globalmente]
+verify_jwt = false
+
+[functions.buscar-videos-playlist]
+verify_jwt = false
+
+[functions.buscar-votacoes]
+verify_jwt = false
+
+[functions.chat-audiencia]
+verify_jwt = false
+
+[functions.chat-professora]
+verify_jwt = false
+
+[functions.chat-psicologa]
+verify_jwt = false
+
+[functions.chat-refutacao]
+verify_jwt = false
+
+[functions.chat-tcc]
+verify_jwt = false
+
+[functions.consultar-situacao-eleitoral]
+verify_jwt = false
+
+[functions.deputado-despesas]
+verify_jwt = false
+
+[functions.detalhes-deputado]
+verify_jwt = false
+
+[functions.detalhes-proposicao]
+verify_jwt = false
+
+[functions.detalhes-votacao]
+verify_jwt = false
+
+[functions.explicar-com-gemini]
+verify_jwt = false
+
+[functions.explicar-jurisprudencia]
+verify_jwt = false
+
+[functions.explicar-noticia]
+verify_jwt = false
+
+[functions.explicar-processo]
+verify_jwt = false
+
+[functions.explicar-votacao]
+verify_jwt = false
+
+[functions.exportar-pdf-educacional]
+verify_jwt = false
+
+[functions.exportar-resumo-pdf]
+verify_jwt = false
+
+[functions.gerar-caso-simulacao]
+verify_jwt = false
+
+[functions.gerar-explicacao]
+verify_jwt = false
+
+[functions.gerar-flashcards]
+verify_jwt = false
+
+[functions.gerar-jogo-juridico]
+verify_jwt = false
+
+[functions.gerar-peticao]
+verify_jwt = false
+
+[functions.gerar-plano-estudos]
+verify_jwt = false
+
+[functions.gerar-prova-visual]
+verify_jwt = false
+
+[functions.gerar-questoes]
+verify_jwt = false
+
+[functions.gerar-resumo-pronto]
+verify_jwt = false
+
+[functions.gerar-resumo-video]
+verify_jwt = false
+
+[functions.gerar-resumo]
+verify_jwt = false
+
+[functions.gerar-termos]
+verify_jwt = false
+
+[functions.salvar-acesso-desktop]
+verify_jwt = false

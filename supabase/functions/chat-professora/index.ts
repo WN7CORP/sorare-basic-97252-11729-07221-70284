@@ -30,6 +30,22 @@ serve(async (req) => {
     let cfContext = '';
     const hasFiles = files && files.length > 0;
     
+    // Se há arquivos anexados, adicionar instrução especial de análise
+    let fileAnalysisPrefix = '';
+    if (hasFiles) {
+      fileAnalysisPrefix = `\n\n**IMPORTANTE - ARQUIVO ANEXADO:**
+A pessoa anexou um arquivo (imagem ou PDF). Você DEVE:
+1. Analisar cuidadosamente o conteúdo do arquivo
+2. Explicar do que se trata o conteúdo
+3. Perguntar à pessoa o que ela gostaria de fazer ou saber sobre esse conteúdo
+4. Nas sugestões [SUGESTÕES], oferecer perguntas específicas baseadas no conteúdo analisado, como:
+   - Explicar conceitos específicos do documento
+   - Criar flashcards sobre os tópicos
+   - Gerar questões de múltipla escolha
+   - Resumir os pontos principais
+   - Aplicação prática do conteúdo\n`;
+    }
+    
     // Regex para detectar artigos (art. 5º, artigo 5, art 5, etc)
     const articleRegex = /art(?:igo)?\.?\s*(\d+)/gi;
     const articleMatches = lastUserMessage?.content?.match(articleRegex);
@@ -160,6 +176,7 @@ ESTILO:
 - Sempre reforce: "Procure um advogado para orientação completa"
 
 ${cfContext ? `\n\nCONTEXTO DA CONSTITUIÇÃO FEDERAL:${cfContext}` : ''}
+${fileAnalysisPrefix}
 
 **CRÍTICO - Sugestões de Perguntas:**
 Ao final de CADA resposta, você DEVE incluir 2-3 sugestões de perguntas/tópicos que a pessoa pode explorar, no formato:
@@ -170,19 +187,6 @@ Pergunta relevante 2 que aprofunda o assunto?
 Pergunta relevante 3 relacionada ao tema?
 [/SUGESTÕES]
 
-${hasFiles ? `
-**SUGESTÕES PARA ARQUIVOS ANEXADOS:**
-Quando a pessoa anexar um arquivo (PDF ou imagem), além de analisar o conteúdo, você DEVE oferecer sugestões específicas:
-
-[SUGESTÕES]
-Explique este documento de forma simples
-Quais artigos de lei se aplicam aqui?
-Crie flashcards sobre este conteúdo
-Gere questões de múltipla escolha sobre isso
-Resuma os principais pontos
-Qual a relevância prática deste tema?
-[/SUGESTÕES]
-` : ''}
 
 As sugestões devem:
 - Ser relevantes ao que a pessoa perguntou

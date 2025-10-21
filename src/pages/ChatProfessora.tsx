@@ -48,20 +48,24 @@ const ChatProfessora = () => {
   const [showQuestoesModal, setShowQuestoesModal] = useState(false);
   const [currentContent, setCurrentContent] = useState("");
   
-  // Auto-scroll melhorado - sempre desce quando há nova mensagem
+  // Auto-scroll apenas durante streaming
   useEffect(() => {
-    const scrollToBottom = () => {
-      if (scrollRef.current) {
-        const scrollElement = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
-        if (scrollElement) {
-          scrollElement.scrollTop = scrollElement.scrollHeight;
+    // Só rola se estiver carregando ou se a última mensagem estiver em streaming
+    const lastMessage = messages[messages.length - 1];
+    const shouldScroll = isLoading || lastMessage?.isStreaming;
+    
+    if (shouldScroll) {
+      const scrollToBottom = () => {
+        if (scrollRef.current) {
+          const scrollElement = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+          if (scrollElement) {
+            scrollElement.scrollTop = scrollElement.scrollHeight;
+          }
         }
-      }
-    };
-
-    // Pequeno delay para garantir que o DOM foi atualizado
-    const timer = setTimeout(scrollToBottom, 100);
-    return () => clearTimeout(timer);
+      };
+      const timer = setTimeout(scrollToBottom, 100);
+      return () => clearTimeout(timer);
+    }
   }, [messages, isLoading]);
   const handleModeChange = (newMode: ChatMode) => {
     setMode(newMode);
@@ -239,7 +243,13 @@ const ChatProfessora = () => {
   };
   const sendMessage = async () => {
     if (!input.trim() && uploadedFiles.length === 0) return;
-    const messageText = input.trim() || "Por favor, analise o arquivo anexado.";
+    
+    // Se houver arquivos anexados, instrui análise automática
+    let messageText = input.trim();
+    if (uploadedFiles.length > 0 && !messageText) {
+      messageText = "Por favor, analise o conteúdo anexado e me diga do que se trata. Depois me pergunte o que eu gostaria de saber ou fazer com esse conteúdo.";
+    }
+    
     setInput("");
     await streamResponse(messageText, 'chat');
   };
@@ -264,8 +274,8 @@ const ChatProfessora = () => {
     setShowQuestoesModal(true);
   };
 
-  // Perguntas comuns pré-definidas
-  const commonQuestions = [
+  // Perguntas comuns pré-definidas - todas as opções
+  const allQuestions = [
     "Qual a diferença entre dolo e culpa?",
     "O que é presunção de inocência?",
     "Explique o princípio da legalidade",
@@ -277,6 +287,12 @@ const ChatProfessora = () => {
     "Explique a prescrição penal",
     "O que é legítima defesa?"
   ];
+
+  // Selecionar 4 perguntas aleatórias a cada renderização da tela inicial
+  const [commonQuestions] = useState(() => {
+    const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 4);
+  });
   const renderWelcomeScreen = () => {
     if (mode === "study") {
       return <div className="flex flex-col items-center justify-center h-full space-y-6 pb-20 px-4">
@@ -313,7 +329,7 @@ const ChatProfessora = () => {
                       setTimeout(() => sendMessage(), 100);
                     }}
                   >
-                    <p className="text-sm">{question}</p>
+                    <p className="text-[15px] leading-relaxed">{question}</p>
                   </Card>
                 ))}
               </div>
@@ -388,11 +404,11 @@ const ChatProfessora = () => {
       </div>
 
       <ScrollArea ref={scrollRef} className="flex-1 px-4 py-4">
-        {messages.length === 0 ? renderWelcomeScreen() : <>
+          {messages.length === 0 ? renderWelcomeScreen() : <>
             {messages.map((message, index) => <div key={index} className={cn("mb-4 flex", message.role === "user" ? "justify-end" : "justify-start")}>
                 <div className={cn("max-w-[85%] rounded-2xl px-4 py-3", message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted")}>
                   {message.role === "assistant" ? <>
-                      <div className="prose prose-sm max-w-none dark:prose-invert prose-p:text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-ul:text-foreground prose-ol:text-foreground">
+                      <div className="prose prose-sm max-w-none dark:prose-invert prose-p:text-[15px] prose-p:leading-[1.4] prose-p:text-foreground prose-headings:text-foreground prose-strong:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-[15px]">
                         <ReactMarkdown 
                           remarkPlugins={[remarkGfm]}
                           components={{
@@ -402,7 +418,7 @@ const ChatProfessora = () => {
                               if (text.includes('[SUGESTÕES]') || text.includes('[/SUGESTÕES]')) {
                                 return null;
                               }
-                              return <p>{children}</p>;
+                              return <p className="text-[15px] leading-[1.4]">{children}</p>;
                             }
                           }}
                         >
@@ -437,7 +453,7 @@ const ChatProfessora = () => {
                                         setTimeout(() => sendMessage(), 100);
                                       }}
                                     >
-                                      <p className="text-xs">{suggestion}</p>
+                                      <p className="text-[14px]">{suggestion}</p>
                                     </Card>
                                   ))}
                                 </div>
@@ -455,13 +471,13 @@ const ChatProfessora = () => {
                           </>
                         );
                       })()}
-                    </> : <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
+                    </> : <p className="text-[15px] leading-[1.4] whitespace-pre-wrap">{message.content}</p>}
                 </div>
               </div>)}
             {isLoading && <div className="flex justify-start mb-4">
                 <div className="bg-muted rounded-2xl px-4 py-3 flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Pensando...</span>
+                  <span className="text-[15px]">Pensando...</span>
                 </div>
               </div>}
           </>}
