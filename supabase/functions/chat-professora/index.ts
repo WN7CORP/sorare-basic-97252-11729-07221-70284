@@ -229,6 +229,14 @@ ${cfContext ? `\n\nCONTEXTO DA CONSTITUIÇÃO FEDERAL:${cfContext}` : ''}`;
                   data: base64Data
                 }
               });
+            } else if (file.type === 'application/pdf') {
+              // Enviar o PDF inteiro como inline_data para análise real do conteúdo
+              parts.push({
+                inline_data: {
+                  mime_type: 'application/pdf',
+                  data: base64Data
+                }
+              });
             }
           }
         }
