@@ -15,6 +15,7 @@ import { toast as sonnerToast } from "sonner";
 import { MessageActionsChat } from "@/components/MessageActionsChat";
 import ChatFlashcardsModal from "@/components/ChatFlashcardsModal";
 import ChatQuestoesModal from "@/components/ChatQuestoesModal";
+import { getDocument, GlobalWorkerOptions, version as pdfjsVersion } from "pdfjs-dist";
 
 interface Message {
   role: "user" | "assistant";
@@ -48,6 +49,18 @@ const ChatProfessora = () => {
   const [showQuestoesModal, setShowQuestoesModal] = useState(false);
   const [currentContent, setCurrentContent] = useState("");
   
+  // Configurar worker do PDF.js uma vez
+  useEffect(() => {
+    try {
+      // Usa CDN confiável para o worker do pdfjs
+      // Evita erros de worker no Vite
+      // @ts-ignore
+      GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsVersion}/pdf.worker.min.js`;
+    } catch (e) {
+      console.warn("Falha ao configurar worker do PDF.js", e);
+    }
+  }, []);
+  
   // Auto-scroll apenas durante streaming
   useEffect(() => {
     // Só rola se estiver carregando ou se a última mensagem estiver em streaming
@@ -75,36 +88,71 @@ const ChatProfessora = () => {
   };
   const handleFileSelect = async (file: File, expectedType: "image" | "pdf") => {
     if (expectedType === "image" && !file.type.includes("image/")) {
-      toast({
-        title: "Tipo de arquivo incorreto",
-        description: "Por favor, envie apenas imagens",
-        variant: "destructive"
-      });
+      toast({ title: "Tipo de arquivo incorreto", description: "Por favor, envie apenas imagens", variant: "destructive" });
       return;
     }
     if (expectedType === "pdf" && file.type !== "application/pdf") {
-      toast({
-        title: "Tipo de arquivo incorreto",
-        description: "Por favor, envie apenas PDFs",
-        variant: "destructive"
-      });
+      toast({ title: "Tipo de arquivo incorreto", description: "Por favor, envie apenas PDFs", variant: "destructive" });
       return;
     }
-    const reader = new FileReader();
-    reader.onload = event => {
-      const base64 = event.target?.result as string;
-      setUploadedFiles(prev => [...prev, {
-        name: file.name,
-        type: file.type,
-        data: base64
-      }]);
-    };
-    reader.readAsDataURL(file);
+
+    try {
+      // Converter para base64 e manter na UI
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target?.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const uploaded: UploadedFile = { name: file.name, type: file.type, data: base64 };
+      setUploadedFiles(prev => [...prev, uploaded]);
+
+      // Enviar automaticamente para análise assim que anexar
+      if (expectedType === "image") {
+        await streamResponse(
+          "Analise a imagem anexada. Descreva objetivamente o que há nela, extraia textos visíveis (se houver) e destaque os pontos principais. Depois me pergunte o que desejo saber/fazer e sugira 2-3 perguntas baseadas na análise.",
+          'chat',
+          [uploaded]
+        );
+      } else {
+        const text = await extractPdfText(file);
+        const truncated = text.slice(0, 8000);
+        await streamResponse(
+          `Analise este PDF. Diga do que se trata, destaque os pontos principais e possíveis ações. Depois me pergunte o que desejo saber/fazer e sugira 2-3 perguntas baseadas na análise.\n\nTexto extraído (parcial):\n\n${truncated}`,
+          'chat',
+          [uploaded]
+        );
+      }
+    } catch (e) {
+      console.error('Falha ao processar arquivo', e);
+      toast({ title: 'Erro ao processar arquivo', description: 'Tente novamente com outro arquivo.', variant: 'destructive' });
+    }
   };
   const removeFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
-  const streamResponse = async (userMessage: string, streamMode: 'chat' | 'lesson' = 'chat') => {
+
+  // Extrair texto de um PDF usando pdfjs-dist
+  const extractPdfText = async (file: File): Promise<string> => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await getDocument({ data: arrayBuffer }).promise;
+      const maxPages = Math.min(pdf.numPages, 15); // limita para performance
+      let fullText = '';
+      for (let i = 1; i <= maxPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map((it: any) => ('str' in it ? it.str : '')).join(' ');
+        fullText += `\n\n[Página ${i}]\n${pageText}`;
+      }
+      return fullText.trim();
+    } catch (e) {
+      console.error('Erro ao extrair texto do PDF', e);
+      return 'Não foi possível extrair o texto deste PDF. Faça uma análise geral do documento pelo contexto e solicite ao usuário pontos de interesse.';
+    }
+  };
+  const streamResponse = async (userMessage: string, streamMode: 'chat' | 'lesson' = 'chat', filesOverride?: UploadedFile[]) => {
     if (streamMode === 'chat') {
       setIsLoading(true);
     } else {
@@ -126,11 +174,7 @@ const ChatProfessora = () => {
     setMessages([...updatedMessages, assistantMessage]);
     try {
       abortControllerRef.current = new AbortController();
-      const {
-        data: {
-          session
-        }
-      } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(`https://izspjvegxdfgkgibpyst.supabase.co/functions/v1/chat-professora`, {
         method: 'POST',
         headers: {
@@ -139,11 +183,8 @@ const ChatProfessora = () => {
           'Authorization': `Bearer ${session?.access_token || ''}`
         },
         body: JSON.stringify({
-          messages: updatedMessages.map(m => ({
-            role: m.role,
-            content: m.content
-          })),
-          files: uploadedFiles,
+          messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
+          files: filesOverride ?? uploadedFiles,
           mode: mode
         }),
         signal: abortControllerRef.current.signal
