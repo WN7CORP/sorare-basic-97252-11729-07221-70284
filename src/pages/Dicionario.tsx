@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface DicionarioTermo {
   Letra: string | null;
@@ -16,6 +18,8 @@ interface DicionarioTermo {
   Significado: string | null;
   "Exemplo de Uso 1": string | null;
   "Exemplo de Uso 2": string | null;
+  exemplo_pratico?: string | null;
+  exemplo_pratico_gerado_em?: string | null;
 }
 
 const Dicionario = () => {
@@ -26,19 +30,35 @@ const Dicionario = () => {
   const { toast } = useToast();
 
   const { data: dicionario, isLoading } = useQuery({
-    queryKey: ["dicionario"],
+    queryKey: ["dicionario-all"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("DICIONARIO" as any)
-        .select("*")
-        .order("Letra", { ascending: true })
-        .order("Palavra", { ascending: true })
-        .range(0, 9999); // Garante até 10.000 registros
+      const pageSize = 1000;
+      let from = 0;
+      let to = pageSize - 1;
+      let all: DicionarioTermo[] = [];
 
-      if (error) throw error;
-      console.log(`✅ Dicionário carregado: ${data?.length || 0} termos`);
-      return (data || []) as unknown as DicionarioTermo[];
+      // Busca paginada para superar limites do PostgREST
+      // Garante ordenação consistente em todas as páginas
+      while (true) {
+        const { data, error } = await supabase
+          .from("DICIONARIO" as any)
+          .select("*")
+          .order("Letra", { ascending: true })
+          .order("Palavra", { ascending: true })
+          .range(from, to);
+
+        if (error) throw error;
+        const batch = (data || []) as unknown as DicionarioTermo[];
+        all = all.concat(batch);
+        if (batch.length < pageSize) break;
+        from += pageSize;
+        to += pageSize;
+      }
+
+      console.log(`✅ Dicionário total carregado: ${all.length} termos`);
+      return all;
     },
+    staleTime: 1000 * 60 * 60,
   });
 
   const filteredTermos = useMemo(() => {
@@ -95,10 +115,10 @@ const Dicionario = () => {
     return [...new Set(dicionario.map(t => t.Letra).filter(Boolean))].sort() as string[];
   }, [dicionario]);
 
-  const handleGerarExemplo = async (palavra: string, significado: string) => {
+  const handleGerarExemplo = async (palavra: string, significado: string, existente?: string | null) => {
     if (exemploPratico[palavra]) {
-      // Se já tem exemplo aberto, fecha
-      setExemploPratico(prev => {
+      // Se já está aberto, fecha
+      setExemploPratico((prev) => {
         const novo = { ...prev };
         delete novo[palavra];
         return novo;
@@ -106,17 +126,23 @@ const Dicionario = () => {
       return;
     }
 
-    setLoadingExemplo(prev => ({ ...prev, [palavra]: true }));
+    // Se já existir no banco, apenas exibe sem gerar
+    if (existente) {
+      setExemploPratico((prev) => ({ ...prev, [palavra]: existente }));
+      return;
+    }
+
+    setLoadingExemplo((prev) => ({ ...prev, [palavra]: true }));
 
     try {
       const { data, error } = await supabase.functions.invoke("gerar-exemplo-pratico", {
-        body: { palavra, significado }
+        body: { palavra, significado },
       });
 
       if (error) throw error;
 
-      setExemploPratico(prev => ({ ...prev, [palavra]: data.exemplo }));
-      
+      setExemploPratico((prev) => ({ ...prev, [palavra]: data.exemplo }));
+
       if (!data.cached) {
         toast({
           title: "Exemplo gerado com sucesso!",
@@ -131,7 +157,7 @@ const Dicionario = () => {
         variant: "destructive",
       });
     } finally {
-      setLoadingExemplo(prev => ({ ...prev, [palavra]: false }));
+      setLoadingExemplo((prev) => ({ ...prev, [palavra]: false }));
     }
   };
 
@@ -223,7 +249,7 @@ const Dicionario = () => {
                         variant="outline"
                         size="sm"
                         className="mb-3"
-                        onClick={() => handleGerarExemplo(termo.Palavra!, termo.Significado!)}
+                        onClick={() => handleGerarExemplo(termo.Palavra!, termo.Significado!, termo.exemplo_pratico)}
                         disabled={loadingExemplo[termo.Palavra!]}
                       >
                         {loadingExemplo[termo.Palavra!] ? (
@@ -246,9 +272,11 @@ const Dicionario = () => {
                             <Lightbulb className="w-3 h-3" />
                             Exemplo Prático (Gerado por IA)
                           </p>
-                          <p className="text-sm text-foreground leading-relaxed">
-                            {exemploPratico[termo.Palavra!]}
-                          </p>
+                          <div className="prose prose-invert prose-sm max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {exemploPratico[termo.Palavra!]}
+                            </ReactMarkdown>
+                          </div>
                         </div>
                       )}
 
