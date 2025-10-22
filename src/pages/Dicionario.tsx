@@ -33,9 +33,10 @@ const Dicionario = () => {
         .select("*")
         .order("Letra", { ascending: true })
         .order("Palavra", { ascending: true })
-        .limit(5000);
+        .range(0, 9999); // Garante até 10.000 registros
 
       if (error) throw error;
+      console.log(`✅ Dicionário carregado: ${data?.length || 0} termos`);
       return (data || []) as unknown as DicionarioTermo[];
     },
   });
