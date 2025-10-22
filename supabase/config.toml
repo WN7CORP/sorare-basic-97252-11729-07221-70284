@@ -135,5 +135,8 @@ verify_jwt = false
 [functions.gerar-termos]
 verify_jwt = false
 
+[functions.gerar-exemplo-pratico]
+verify_jwt = false
+
 [functions.salvar-acesso-desktop]
 verify_jwt = false

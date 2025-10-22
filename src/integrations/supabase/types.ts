@@ -1371,6 +1371,8 @@ export type Database = {
         Row: {
           "Exemplo de Uso 1": string | null
           "Exemplo de Uso 2": string | null
+          exemplo_pratico: string | null
+          exemplo_pratico_gerado_em: string | null
           Letra: string | null
           Palavra: string | null
           Significado: string | null
@@ -1378,6 +1380,8 @@ export type Database = {
         Insert: {
           "Exemplo de Uso 1"?: string | null
           "Exemplo de Uso 2"?: string | null
+          exemplo_pratico?: string | null
+          exemplo_pratico_gerado_em?: string | null
           Letra?: string | null
           Palavra?: string | null
           Significado?: string | null
@@ -1385,6 +1389,8 @@ export type Database = {
         Update: {
           "Exemplo de Uso 1"?: string | null
           "Exemplo de Uso 2"?: string | null
+          exemplo_pratico?: string | null
+          exemplo_pratico_gerado_em?: string | null
           Letra?: string | null
           Palavra?: string | null
           Significado?: string | null

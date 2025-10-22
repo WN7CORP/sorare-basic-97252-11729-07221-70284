@@ -28,9 +28,9 @@ const JuriFlix = () => {
   });
 
   const destaque = titulos?.[0];
-  const filmes = titulos?.filter((t) => t.tipo === "Filme");
-  const series = titulos?.filter((t) => t.tipo === "Série");
-  const documentarios = titulos?.filter((t) => t.tipo === "Documentário");
+  const filmes = titulos?.filter((t) => t.tipo?.toLowerCase().includes("filme"));
+  const series = titulos?.filter((t) => t.tipo?.toLowerCase().includes("série"));
+  const documentarios = titulos?.filter((t) => t.tipo?.toLowerCase().includes("documentário"));
 
   if (isLoading) {
     return (
